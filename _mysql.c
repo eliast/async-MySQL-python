@@ -1833,6 +1833,41 @@ _mysql_ConnectionObject_query(
 	return Py_None;
 }
 
+static char _mysql_ConnectionObject_send_query__doc__[] =
+"Send the query and return so we can do something else.\n\
+Needs to be followed by mysql_read_query_result() when we want to\n\
+finish processing it.\n\
+" ;
+
+static PyObject *
+_mysql_ConnectionObject_send_query(
+    _mysql_ConnectionObject *self,
+    PyObject *args)
+{
+    char *query;
+    int len, r;
+    if (!PyArg_ParseTuple(args, "s#:query", &query, &len)) return NULL;
+    check_connection(self);
+    r = mysql_send_query(&(self->connection), query, len);
+    if (r) return _mysql_Exception(self);
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
+static char _mysql_ConnectionObject_read_query_result__doc__[] =
+"Returns the query results.\n" ;
+
+static PyObject *
+_mysql_ConnectionObject_read_query_result(
+    _mysql_ConnectionObject *self,
+    PyObject *args)
+{
+    int r;
+    r = self->connection.methods->read_query_result(&(self->connection));
+    if (r) return _mysql_Exception(self);
+    Py_INCREF(Py_None);
+    return Py_None;
+}
 
 static char _mysql_ConnectionObject_select_db__doc__[] =
 "Causes the database specified by db to become the default\n\
@@ -2194,6 +2229,18 @@ static PyMethodDef _mysql_ConnectionObject_methods[] = {
 	},
 #endif
 	{
+		"send_query",
+		(PyCFunction)_mysql_ConnectionObject_send_query,
+		METH_VARARGS,
+		_mysql_ConnectionObject_send_query__doc__
+	},
+	{
+		"read_query_result",
+		(PyCFunction)_mysql_ConnectionObject_read_query_result,
+		METH_VARARGS,
+		_mysql_ConnectionObject_read_query_result__doc__
+	},
+	{
 		"close",
 		(PyCFunction)_mysql_ConnectionObject_close,
 		METH_VARARGS,
@@ -2341,6 +2388,13 @@ static MyMemberlist(_mysql_ConnectionObject_memberlist)[] = {
 		offsetof(_mysql_ConnectionObject,converter),
 		0,
 		"Type conversion mapping"
+		),
+	MyMember(
+		"fd",
+		T_UINT,
+		offsetof(_mysql_ConnectionObject,connection.net.fd),
+		RO,
+		"File descriptor of the server connection"
 		),
 	MyMember(
 		"server_capabilities",
